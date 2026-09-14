@@ -34,12 +34,22 @@ dev = [
 [project.scripts]
 crush-analyze = "crush_analyze.cli:main"
 
+[project.entry-points.pyinstaller40]
+# Auto-discovered by any PyInstaller build that has crush-analyze installed
+# (e.g. crush-forensics' own build.yml) -- no PyInstaller-side --add-data
+# entry or knowledge of crush-analyze's internal layout needed there. See
+# crush_analyze/__pyinstaller/.
+hook-dirs = "crush_analyze.__pyinstaller:get_hook_dirs"
+
 [project.urls]
 Homepage = "https://github.com/kalink0/crush-analyze"
 Issues = "https://github.com/kalink0/crush-analyze/issues"
 
 [tool.setuptools.packages.find]
 include = ["crush_analyze*"]
+
+[tool.setuptools.package-data]
+crush_analyze = ["py.typed", "vendored/leapp/*.toml", "vendored/leapp/LICENSE"]
 
 [tool.ruff]
 line-length = 100
@@ -55,4 +65,5 @@ strict = true
 exclude = [
     "build/.*",
     "crush_analyze/vendored/.*",
+    "crush_analyze/__pyinstaller/.*",
 ]
