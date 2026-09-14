@@ -1,12 +1,17 @@
 # crush-analyze
 
 A sibling CLI tool for [Crush](https://github.com/kalink0/crush-forensics)
-that runs small, curated artifact-parsing modules — ported one at a time
-from LEAPP (iLEAPP/aLEAPP/rLEAPP) artifact scripts — and reports the result
-as a versioned JSON contract Crush reads back into a table view.
+that runs small, curated artifact-parsing modules and reports the result as
+a versioned JSON contract Crush reads back into a table view — without
+pulling a whole external forensic suite into Crush's own process.
 
-**Status: skeleton only, no real modules ported yet.** See
-[`docs/design/analyzer-runner.md`](https://github.com/kalink0/crush-forensics/blob/main/docs/design/analyzer-runner.md)
+A module is just a `run(context) -> ModuleResult` function plus a small
+`ModuleInfo` descriptor (see `crush_analyze/modules/base.py`); the first
+modules are ported from LEAPP (iLEAPP/aLEAPP/rLEAPP) artifact scripts, but
+the interface itself isn't LEAPP-specific — anything that can turn a
+directory of files into typed columns and rows fits the same contract.
+
+See [`docs/design/analyzer-runner.md`](https://github.com/kalink0/crush-forensics/blob/main/docs/design/analyzer-runner.md)
 in crush-forensics for the full design: motivation, the frozen result
 contract v1, dev mode, the vendoring policy, and the module-update
 mechanism.
