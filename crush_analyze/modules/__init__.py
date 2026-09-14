@@ -44,6 +44,7 @@ def list_modules() -> list[dict[str, object]]:
             "name": module.name,
             "module_version": module.module_version,
             "requires": module.requires,
+            "paths": module.paths,
         }
         for module in _MODULES.values()
     ]
