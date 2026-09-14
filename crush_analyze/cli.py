@@ -5,7 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import __version__, runner
+from . import __version__, json_safe, runner
 from .modules import UnknownModuleError, get_module, list_modules
 
 
@@ -17,9 +17,12 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("list-modules", help="List bundled analyzer modules as JSON")
 
     run_parser = subparsers.add_parser("run", help="Run an analyzer module against an input directory")
-    source = run_parser.add_mutually_exclusive_group(required=True)
-    source.add_argument("--module", help="ID of a bundled module")
-    source.add_argument(
+    run_parser.add_argument(
+        "--module",
+        help="ID of a bundled module, or (with --module-path) the artifact function to "
+        "run from that file when it declares more than one",
+    )
+    run_parser.add_argument(
         "--module-path",
         help="Path to an external, non-vendored module file (dev mode, requires --dev)",
     )
@@ -42,6 +45,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(list_modules(), indent=2))
         return 0
 
+    if not args.module and not args.module_path:
+        parser.error("one of --module or --module-path is required")
     if bool(args.module_path) != bool(args.dev):
         parser.error("--module-path and --dev must be used together")
 
@@ -52,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.module_path:
-            module_info = runner.load_external_module(Path(args.module_path))
+            module_info = runner.load_external_module(Path(args.module_path), module_id=args.module)
             module_source = f"external:{args.module_path}"
         else:
             module_info = get_module(args.module)
@@ -71,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
     result = runner.run(module_info, input_path, dev_mode=args.dev, module_source=module_source)
 
     try:
-        output_path.write_text(json.dumps(result, indent=2))
+        output_path.write_text(json.dumps(result, indent=2, default=json_safe.default))
     except OSError as exc:
         print(f"error: cannot write output file: {exc}", file=sys.stderr)
         return 2

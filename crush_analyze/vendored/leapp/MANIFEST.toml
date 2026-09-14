@@ -1,0 +1,19 @@
+# Hash-pinned manifest for files vendored byte-identical from iLEAPP,
+# tracked the same disciplined way as crush-forensics' qnxprobe/ewfprobe.
+# See docs/design/analyzer-runner.md ("Vendoring policy") in crush-forensics.
+#
+# Never hand-edit a vendored .py file directly — re-fetch from upstream at a
+# new commit and update the matching entry here instead, so `sha256` always
+# proves what's actually on disk came from that exact upstream commit.
+
+[[files]]
+name = "applicationStateDB.py"
+upstream_repo = "https://github.com/abrignoni/iLEAPP"
+upstream_path = "scripts/artifacts/applicationStateDB.py"
+upstream_commit = "b055398e485daae838ba3c55fd611cc303f0a854"
+upstream_license = "MIT"
+fetched_at = "2026-09-14"
+sha256 = "0cb294447f6a597cc4cb721f93e37c3c9d4eabdcf4d345147550e7837b9634cf"
+# Declares three artifact functions: get_installed_apps,
+# get_snapshot_creationDate, get_snapshot_lastUsedDate — each exposed as
+# its own crush-analyze module id (see crush_analyze/modules/__init__.py).

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from ..context import Context
 from ..contract import Column
-from .base import ModuleInfo, ModuleResult
+from ..module_types import ModuleInfo, ModuleResult
 
 
 def run(context: Context) -> ModuleResult:

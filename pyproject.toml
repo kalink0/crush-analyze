@@ -19,7 +19,10 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies = []
+dependencies = [
+    "biplist>=1.0.3",
+    "nska_deserialize>=1.5.1",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -41,6 +44,7 @@ include = ["crush_analyze*"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = ["crush_analyze/vendored"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F"]
@@ -48,3 +52,7 @@ select = ["E4", "E7", "E9", "F"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
+exclude = [
+    "build/.*",
+    "crush_analyze/vendored/.*",
+]

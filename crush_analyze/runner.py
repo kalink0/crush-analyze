@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib.util
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -8,33 +7,60 @@ from typing import Any
 
 from .context import Context, find_files
 from .contract import build_result
-from .modules.base import ModuleInfo
+from .leapp_compat import loader as leapp_loader
+from .module_types import ModuleInfo
 
 
 class ModuleLoadError(Exception):
     pass
 
 
-def load_external_module(path: Path) -> ModuleInfo:
-    """Loads a dev-mode module: an arbitrary, non-vendored `.py` file
-    exposing a module-level `MODULE = ModuleInfo(...)`, exactly the same
-    shape a bundled module in `crush_analyze/modules/` uses. Nothing about
-    this path trusts the file beyond that — it's still just `exec`-ing
-    Python the caller pointed at, same trust model as running any script."""
-    if not path.is_file():
-        raise ModuleLoadError(f"module file not found: {path}")
-    spec = importlib.util.spec_from_file_location(path.stem, path)
-    if spec is None or spec.loader is None:
-        raise ModuleLoadError(f"could not load a module spec from {path}")
-    module = importlib.util.module_from_spec(spec)
+def load_external_module(path: Path, module_id: str | None = None) -> ModuleInfo:
+    """Loads a dev-mode module: an arbitrary, non-vendored `.py` file a
+    module author has open in an editor. Nothing about this path trusts the
+    file beyond running it — it's still just `exec`-ing Python the caller
+    pointed at, same trust model as running any script.
+
+    Two shapes are recognized, tried in this order:
+
+    1. crush-analyze's own native convention — a module-level
+       `MODULE = ModuleInfo(...)`, exactly what a bundled module in
+       `crush_analyze/modules/` uses.
+    2. A LEAPP-shaped artifact file (`__artifacts_v2__` + one or more
+       `@artifact_processor`-decorated functions) — the shape a module
+       author's real, unmodified iLEAPP source has, which is the actual
+       point of dev mode. A file declaring more than one artifact function
+       (common — see the vendored `applicationStateDB.py`) requires
+       `module_id` to say which one to run.
+    """
     try:
-        spec.loader.exec_module(module)
-    except Exception as exc:
-        raise ModuleLoadError(f"{path} raised while loading: {exc}") from exc
-    info = getattr(module, "MODULE", None)
-    if not isinstance(info, ModuleInfo):
-        raise ModuleLoadError(f"{path} has no module-level MODULE = ModuleInfo(...)")
-    return info
+        module = leapp_loader.exec_module_file(path)
+    except leapp_loader.LeappModuleLoadError as exc:
+        raise ModuleLoadError(str(exc)) from exc
+
+    native = getattr(module, "MODULE", None)
+    if isinstance(native, ModuleInfo):
+        return native
+
+    try:
+        infos = leapp_loader.artifacts_from_module(module, path)
+    except leapp_loader.LeappModuleLoadError as exc:
+        raise ModuleLoadError(str(exc)) from exc
+
+    if module_id:
+        for info in infos:
+            if info.id == module_id:
+                return info
+        available = ", ".join(info.id for info in infos)
+        raise ModuleLoadError(
+            f"{path} has no artifact function {module_id!r} (available: {available})"
+        )
+    if len(infos) == 1:
+        return infos[0]
+    available = ", ".join(info.id for info in infos)
+    raise ModuleLoadError(
+        f"{path} declares {len(infos)} artifact functions ({available}) -- pass --module to pick one"
+    )
 
 
 def run(
@@ -47,7 +73,8 @@ def run(
     started_at = datetime.now(timezone.utc)
     start = time.monotonic()
 
-    context = Context(input_path=input_path, files_found=find_files(input_path, module_info.paths))
+    files_found = find_files(input_path, module_info.paths)
+    context = Context(input_path=input_path, files_found=files_found)
 
     try:
         result = module_info.run(context)
