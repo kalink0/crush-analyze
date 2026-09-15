@@ -22,6 +22,7 @@ classifiers = [
 dependencies = [
     "biplist>=1.0.3",
     "nska_deserialize>=1.5.1",
+    "xmltodict>=0.13",
 ]
 
 [project.optional-dependencies]

@@ -211,3 +211,33 @@ pass the project's lint rules, only the shim/tests around it do.
   contract v1 JSON as well as into the `list-modules` output — nothing to
   do in the module itself, the file just needs to live in the right
   `ios/`/`android/` folder.
+- **ABX (Android Binary XML) is not the barrier it looks like.**
+  `ilapfuncs.abxread`/`checkabx` gate three aLEAPP candidates
+  (`packageInfo.py`, `packageRestrictions.py`, `packageUserStates.py`) that
+  originally looked like they needed "a whole binary format" of new shim
+  work. crush-forensics already has its own from-scratch ABX decoder
+  (`crush/parsers/abx_decoder.py`, no third-party dependency, already
+  debugged against real device samples) — don't reimplement a third time;
+  duplicate that file as-is into `leapp_compat/abx_decoder.py` (same
+  author/license, just can't be imported across the two repos) and wrap it
+  with a thin `abxread`/`checkabx` (~30 lines total, see `packageInfo.py`'s
+  port). `abxread(path, multi_root).getroot()` is the interface real
+  callers expect — a real `xml.etree.ElementTree.ElementTree`, not a bare
+  string or Element; `multi_root` can be accepted-but-ignored since the
+  decoder always wraps multiple roots into a synthetic `<abx-root>` on its
+  own rather than needing to be told in advance.
+- **`xmltodict.parse()` on a single repeated element returns a bare
+  `dict`, not a one-item `list`.** `packageInfo.py`'s own
+  `for package in package_dict:` then iterates dict *keys* (strings)
+  instead of package records, raising `AttributeError` on `.get()`. Real
+  device dumps essentially always have more than one installed package so
+  this doesn't show up in practice, but a synthetic single-package test
+  fixture will hit it — use at least two `<package>` elements in any test
+  fixture for this module (or any other `xmltodict`-based one).
+- **Hex-encoded timestamp attributes.** Real Android `packages.xml`
+  stores `ft`/`it`/`ut` as hex-digit strings (e.g. `it="18bcfe56800"`),
+  read via `float.fromhex()` in the vendored module's own `ReadUnixTimeMs`.
+  A test fixture using plain decimal digits still "works" (no exception)
+  but silently produces a wildly wrong date — `float.fromhex` parses a
+  bare digit string as hex, not decimal. Encode test timestamps as
+  `hex(ms_since_epoch)[2:]` (no `0x` prefix) to match the real format.

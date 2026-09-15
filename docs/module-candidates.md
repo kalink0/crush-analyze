@@ -143,14 +143,32 @@ for the process. Two additions this port required in the compat shim:
   `vendored/leapp/android/_helpers/`, registered as
   `scripts.artifacts.storagePathViews` alongside `scripts.ilapfuncs`.
 
-Of the six candidates checked (`installedappsLibrary.py`,
+**`packageInfo.py` also ported, same category, as a second correction to
+the note below.** Of the six candidates checked (`installedappsLibrary.py`,
 `installedappsVending.py`, `installedappsGass.py`, `packageInfo.py`,
 `packageRestrictions.py`, `packageUserStates.py`), `installedappsGass.py`
-and `installedappsLibrary.py` were left unported (narrower data — version/
-hash only, or purchase history only), as were the three ABX-based ones
-(`packageInfo.py`, `packageRestrictions.py`, `packageUserStates.py` —
-`ilapfuncs.abxread`/`checkabx`, a whole binary format, noticeably more
-effort than a single trivial shim symbol).
+and `installedappsLibrary.py` stayed unported (narrower data — version/
+hash only, or purchase history only). `packageInfo.py` (`get_package_info`,
+aLEAPP's own `"category": "Installed Apps"`) reads the OS's own
+`/system/packages.xml` directly — Package Name, Install/Update Time,
+Install Originator, Installer, Code Path, Public/Private Flags — a
+materially richer and more universally-present source than Vending's
+Play-Store-only local cache (present regardless of whether Play Store was
+ever used on the device). The ABX-format concern that originally ruled all
+three ABX-based candidates out turned out to be much smaller than
+estimated: crush-forensics already has its own working, from-scratch ABX
+decoder (`crush/parsers/abx_decoder.py`, no third-party dependency,
+already debugged against real samples) — duplicated as-is into
+`leapp_compat/abx_decoder.py` (same author/license, can't be imported
+across repos) rather than reimplemented a third time, wrapped by
+`ilapfuncs.abxread`/`checkabx` (~30 new lines total) plus a trivial
+`is_platform_windows`. First vendored module needing a new runtime pip
+dependency, `xmltodict` (same category as `biplist`/`nska_deserialize`,
+not a new kind of thing for this project). `packageRestrictions.py`/
+`packageUserStates.py` still unported — same ABX shim now applies to them
+too if/when needed, but they'd also need `convert_unix_ts_to_utc` (not yet
+added; aLEAPP's own implementation already uses epoch+`timedelta`, not
+`datetime.fromtimestamp`, so it's a direct, safe port when it comes up).
 
 ### Higher forensic value, moderate complexity
 

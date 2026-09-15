@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+import sys
 from pathlib import Path
 
 from crush_analyze.context import Context
@@ -8,6 +9,31 @@ from crush_analyze.leapp_compat import ilapfuncs
 from crush_analyze.leapp_compat.loader import LeappModuleLoadError, load_leapp_module_file
 
 _DUMMY_CONTEXT = Context(input_path=Path("."), files_found=[])
+
+
+def _abx_u16(value: int) -> bytes:
+    return value.to_bytes(2, "big")
+
+
+def _abx_utf(s: str) -> bytes:
+    encoded = s.encode("utf-8")
+    return _abx_u16(len(encoded)) + encoded
+
+
+def _abx_interned(s: str) -> bytes:
+    return _abx_u16(0xFFFF) + _abx_utf(s)
+
+
+def _make_abx_bytes() -> bytes:
+    """A minimal, synthetic ABX file for: <root attr="value"/> -- same
+    construction crush-forensics' own conftest.py/test_parsers.py use for
+    testing crush/parsers/abx_decoder.py, since this shim wraps a deliberate
+    duplicate of that exact decoder (see leapp_compat/abx_decoder.py)."""
+    magic = b"ABX\x00"
+    start_tag = bytes([0x22]) + _abx_utf("root")  # TYPE_STRING + START_TAG
+    attr = bytes([0x2F]) + _abx_interned("attr") + _abx_utf("value")  # ATTRIBUTE token
+    end_tag = bytes([0x23]) + _abx_utf("root")  # TYPE_STRING + END_TAG
+    return magic + start_tag + attr + end_tag
 
 
 def test_get_file_path_matches_a_glob_pattern() -> None:
@@ -33,6 +59,36 @@ def test_open_sqlite_db_readonly_opens_a_real_db(tmp_path: Path) -> None:
 
     assert conn is not None
     conn.close()
+
+
+def test_is_platform_windows_matches_sys_platform() -> None:
+    assert ilapfuncs.is_platform_windows() == (sys.platform == "win32")
+
+
+def test_checkabx_detects_the_magic_header(tmp_path: Path) -> None:
+    abx_path = tmp_path / "settings.xml"
+    abx_path.write_bytes(_make_abx_bytes())
+    plain_path = tmp_path / "plain.xml"
+    plain_path.write_text("<root/>")
+
+    assert ilapfuncs.checkabx(str(abx_path)) is True
+    assert ilapfuncs.checkabx(str(plain_path)) is False
+
+
+def test_checkabx_returns_false_for_a_missing_file(tmp_path: Path) -> None:
+    assert ilapfuncs.checkabx(str(tmp_path / "missing.xml")) is False
+
+
+def test_abxread_returns_an_elementtree_with_a_working_getroot(tmp_path: Path) -> None:
+    abx_path = tmp_path / "settings.xml"
+    abx_path.write_bytes(_make_abx_bytes())
+
+    tree = ilapfuncs.abxread(str(abx_path), False)
+
+    root = tree.getroot()
+    assert root is not None
+    assert root.tag == "root"
+    assert root.attrib["attr"] == "value"
 
 
 def test_artifact_processor_is_a_pure_pass_through() -> None:
