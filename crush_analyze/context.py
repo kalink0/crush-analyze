@@ -24,7 +24,11 @@ class Context:
         return [str(p) for p in self.files_found]
 
     def get_relative_path(self, path: str) -> str:
-        return str(Path(path).relative_to(self.input_path))
+        """Forward-slash always, even on Windows: a module can put this
+        straight into a row value (a real LEAPP module's 'Source File'
+        column commonly does), and contract v1 JSON must not vary by which
+        OS produced it."""
+        return Path(path).relative_to(self.input_path).as_posix()
 
 
 def find_files(input_path: Path, patterns: list[str]) -> list[Path]:

@@ -103,8 +103,12 @@ def run(
         # Relative to input_path, not absolute -- the absolute path only
         # means anything inside this run's own (often temp, since-deleted)
         # extraction directory, matching Context.get_relative_path's own
-        # convention for anything shown back to a caller.
-        source_files=[str(p.relative_to(input_path)) for p in files_found],
+        # convention for anything shown back to a caller. `as_posix()`, not
+        # `str()`: contract v1 is consumed cross-platform (this CLI can run
+        # on Windows), and a path in JSON output must not depend on which
+        # OS produced it -- str() gives backslashes on Windows, which broke
+        # the Windows CI run.
+        source_files=[p.relative_to(input_path).as_posix() for p in files_found],
         dev_mode=dev_mode,
         module_source=module_source,
         status=status,

@@ -28,7 +28,7 @@ def test_find_files_ignores_directories(tmp_path: Path) -> None:
 def test_get_relative_path_is_relative_to_input_path(tmp_path: Path) -> None:
     context = Context(input_path=tmp_path, files_found=[])
 
-    assert context.get_relative_path(str(tmp_path / "a" / "b.txt")) == str(Path("a") / "b.txt")
+    assert context.get_relative_path(str(tmp_path / "a" / "b.txt")) == "a/b.txt"
 
 
 def test_get_files_found_returns_strings(tmp_path: Path) -> None:
