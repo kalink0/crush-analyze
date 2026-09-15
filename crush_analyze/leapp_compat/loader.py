@@ -1,7 +1,6 @@
-"""Loads a LEAPP artifact script — vendored (bundled, curated) or external
-(dev mode, an unmodified file a module author has open in an editor) — the
-same way in both cases, and adapts each of its `__artifacts_v2__` entries
-into crush-analyze's own `ModuleInfo`/`ModuleResult` shape.
+"""Loads a vendored, curated LEAPP artifact script and adapts each of its
+`__artifacts_v2__` entries into crush-analyze's own `ModuleInfo`/
+`ModuleResult` shape.
 
 A single LEAPP artifact file commonly declares more than one artifact
 function (`applicationStateDB.py` declares three), so this returns a list,
@@ -31,10 +30,10 @@ class LeappModuleLoadError(Exception):
 
 def install_scripts_shim() -> None:
     """Registers `leapp_compat.ilapfuncs` into `sys.modules` under the exact
-    dotted name (`scripts.ilapfuncs`) a LEAPP artifact file's own, unmodified
-    `from scripts.ilapfuncs import ...` expects — so neither a vendored file
-    nor a dev-mode external file needs a real iLEAPP/aLEAPP install on the
-    machine running crush-analyze. Also registers the vendored
+    dotted name (`scripts.ilapfuncs`) a vendored LEAPP artifact file's own,
+    unmodified `from scripts.ilapfuncs import ...` expects — so it needs no
+    real iLEAPP/aLEAPP install on the machine running crush-analyze. Also
+    registers the vendored
     `scripts.artifacts.storagePathViews` helper a real aLEAPP artifact file
     can import the same way -- unconditionally, exactly like `ilapfuncs`,
     regardless of whether the file being loaded actually needs it.
@@ -59,10 +58,8 @@ def install_scripts_shim() -> None:
 def exec_module_file(path: Path, *, install_shim: bool = True) -> ModuleType:
     """Installs the `scripts.ilapfuncs`/`scripts.artifacts.storagePathViews`
     shim and `exec`s `path` as a fresh module object. Shared by
-    `load_leapp_module_file` below and by `runner.load_external_module`'s
-    dev-mode path, which needs the raw module object first to check for
-    crush-analyze's own native `MODULE` convention before falling back to
-    `__artifacts_v2__`.
+    `load_leapp_module_file` below and by `_load_android_storage_path_views`,
+    which needs the raw module object to load a non-artifact helper file.
 
     `install_shim=False` is for `_load_android_storage_path_views` below only
     -- it loads the shim's own `storagePathViews.py` helper, which imports

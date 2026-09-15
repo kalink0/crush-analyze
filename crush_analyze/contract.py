@@ -8,9 +8,9 @@ fail the whole run.
 Additions on top of that frozen spec, made once Android modules joined the
 iOS ones: `analyzer.platform` ("ios" | "android" | "generic"), so a
 consumer can tell which OS a result's module targets without parsing its
-`analyzer.id`; and `analyzer.source` (`null` for the stub module and for a
-dev-mode external file, else `{repo, commit, path, url}` naming the exact
-upstream commit a curated module's vendored copy was fetched from).
+`analyzer.id`; and `analyzer.source` (`null` for the stub module, else
+`{repo, commit, path, url}` naming the exact upstream commit a curated
+module's vendored copy was fetched from).
 
 One more addition, made for the same reason Crush's Properties panel
 wanted `analyzer.source` -- knowing what a result is actually based on:
@@ -58,8 +58,6 @@ def build_result(
     duration_ms: int,
     input_path: str,
     source_files: list[str],
-    dev_mode: bool,
-    module_source: str,
     status: str,
     warnings: list[str],
     error: dict[str, str] | None,
@@ -82,8 +80,6 @@ def build_result(
             "duration_ms": duration_ms,
             "input_path": input_path,
             "source_files": source_files,
-            "dev_mode": dev_mode,
-            "module_source": module_source,
         },
         "status": status,
         "warnings": warnings,

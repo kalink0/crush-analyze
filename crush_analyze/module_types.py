@@ -45,12 +45,10 @@ class SourceInfo:
 class ModuleInfo:
     """`platform` is "ios" | "android" for a vendored LEAPP-family module,
     set from its vendored/leapp/<platform>/ subdirectory -- "generic" for a
-    platform-agnostic module (e.g. the stub) or a dev-mode external file
-    loaded outside that directory structure.
+    platform-agnostic module (e.g. the stub).
 
-    `source` is None for the stub module and for a dev-mode external file
-    (there is no upstream commit to pin to -- `run.module_source`'s own
-    "external:<path>" already says where that one came from)."""
+    `source` is None for the stub module (there is no upstream commit to
+    pin to)."""
 
     id: str
     name: str

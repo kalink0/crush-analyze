@@ -7,69 +7,10 @@ from typing import Any
 
 from .context import Context, find_files
 from .contract import build_result
-from .leapp_compat import loader as leapp_loader
 from .module_types import ModuleInfo
 
 
-class ModuleLoadError(Exception):
-    pass
-
-
-def load_external_module(path: Path, module_id: str | None = None) -> ModuleInfo:
-    """Loads a dev-mode module: an arbitrary, non-vendored `.py` file a
-    module author has open in an editor. Nothing about this path trusts the
-    file beyond running it — it's still just `exec`-ing Python the caller
-    pointed at, same trust model as running any script.
-
-    Two shapes are recognized, tried in this order:
-
-    1. crush-analyze's own native convention — a module-level
-       `MODULE = ModuleInfo(...)`, exactly what a bundled module in
-       `crush_analyze/modules/` uses.
-    2. A LEAPP-shaped artifact file (`__artifacts_v2__` + one or more
-       `@artifact_processor`-decorated functions) — the shape a module
-       author's real, unmodified iLEAPP source has, which is the actual
-       point of dev mode. A file declaring more than one artifact function
-       (common — see the vendored `applicationStateDB.py`) requires
-       `module_id` to say which one to run.
-    """
-    try:
-        module = leapp_loader.exec_module_file(path)
-    except leapp_loader.LeappModuleLoadError as exc:
-        raise ModuleLoadError(str(exc)) from exc
-
-    native = getattr(module, "MODULE", None)
-    if isinstance(native, ModuleInfo):
-        return native
-
-    try:
-        infos = leapp_loader.artifacts_from_module(module, path)
-    except leapp_loader.LeappModuleLoadError as exc:
-        raise ModuleLoadError(str(exc)) from exc
-
-    if module_id:
-        for info in infos:
-            if info.id == module_id:
-                return info
-        available = ", ".join(info.id for info in infos)
-        raise ModuleLoadError(
-            f"{path} has no artifact function {module_id!r} (available: {available})"
-        )
-    if len(infos) == 1:
-        return infos[0]
-    available = ", ".join(info.id for info in infos)
-    raise ModuleLoadError(
-        f"{path} declares {len(infos)} artifact functions ({available}) -- pass --module to pick one"
-    )
-
-
-def run(
-    module_info: ModuleInfo,
-    input_path: Path,
-    *,
-    dev_mode: bool,
-    module_source: str,
-) -> dict[str, Any]:
+def run(module_info: ModuleInfo, input_path: Path) -> dict[str, Any]:
     started_at = datetime.now(timezone.utc)
     start = time.monotonic()
 
@@ -109,8 +50,6 @@ def run(
         # OS produced it -- str() gives backslashes on Windows, which broke
         # the Windows CI run.
         source_files=[p.relative_to(input_path).as_posix() for p in files_found],
-        dev_mode=dev_mode,
-        module_source=module_source,
         status=status,
         warnings=warnings,
         error=error,

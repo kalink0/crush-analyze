@@ -39,9 +39,11 @@ Before copying anything, check the original file from iLEAPP/aLEAPP:
    `__artifacts_v2__` dict.
 2. **Imports at the top of the file.** A real artifact script typically
    does `from scripts.ilapfuncs import ...`. The compat shim
-   (`crush_analyze/leapp_compat/ilapfuncs.py`) currently covers exactly five
-   symbols: `open_sqlite_db_readonly`, `artifact_processor`, `logfunc`,
-   `get_file_path`, `does_column_exist_in_db`. If the target module imports
+   (`crush_analyze/leapp_compat/ilapfuncs.py`) currently covers
+   `open_sqlite_db_readonly`, `artifact_processor`, `logfunc`,
+   `get_file_path`, `does_column_exist_in_db`, `is_platform_windows`,
+   `abxread`, `checkabx` — check the file itself for the current, exact
+   list rather than trusting this count to stay accurate. If the target module imports
    other `scripts.ilapfuncs` symbols (e.g. `convert_ts_human_to_utc`,
    `get_plist_content`, `abxread`/`checkabx`), those need to be
    **minimally reimplemented** there — never vendor the real, 1900-line
@@ -64,22 +66,40 @@ Before copying anything, check the original file from iLEAPP/aLEAPP:
    crush-analyze module id — nothing further to do, `leapp_compat/
    loader.py::artifacts_from_module` handles it.
 
-## 2. Before vendoring: test in dev mode against the unmodified original
+## 2. Before vendoring: test the unmodified original directly
 
-Don't copy right away — first run against the real, unmodified original
-file:
+Don't copy the file into the vendored tree on faith — load and run it
+against real test data first, from a throwaway script (there is no CLI
+flag for this; dev mode, which offered one, was removed — see below):
 
-```sh
-crush-analyze run --module-path /path/to/original_file.py \
-    --module <function-name> --dev \
-    --input <test-directory> --output out.json
+```python
+from pathlib import Path
+from crush_analyze.leapp_compat.loader import load_leapp_module_file
+from crush_analyze import runner
+
+infos = load_leapp_module_file(Path("/path/to/original_file.py"), platform="android")
+result = runner.run(infos[0], Path("/path/to/test-directory"))
+print(result["status"], result["rows"])
 ```
 
-`--module` is only needed when the file declares more than one artifact
-function (otherwise you get an error listing the available names). This
-exercises step 1 in practice, before anything is vendored: missing
+This exercises step 1 in practice, before anything is vendored: missing
 `ilapfuncs` symbols or `Context` methods show up here as a
-`ModuleLoadError`.
+`LeappModuleLoadError` (a Python exception, not a CLI error message —
+this is a script, not the `crush-analyze` command).
+
+**Dev mode removed, 2026-09-15.** An earlier version of this tool had a
+`crush-analyze run --module-path <file> --dev [--module <name>]` CLI mode
+and a matching "Load module from file… (dev mode)" entry in Crush's own
+Run Analyzer picker, meant to let a module author iterate against
+Crush's currently-open data without going through this doc's steps at
+all. Cut because it didn't actually deliver on that: the compat shim's
+symbol coverage only grows when *we* decide to extend it (a new
+crush-analyze commit), and a module author hitting a missing symbol
+mid-session has no way to add it themselves — so it only ever worked
+reliably for a module whose full requirements were already known and
+already covered, which is exactly the case this step 2 script already
+handles just as well, without a second code path (settings, CLI flags,
+picker branch) to maintain for it.
 
 ## 3. Vendoring
 

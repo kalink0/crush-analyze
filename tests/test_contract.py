@@ -16,8 +16,6 @@ def test_build_result_has_mandatory_fields_on_success() -> None:
         duration_ms=5,
         input_path="/tmp/in",
         source_files=["a"],
-        dev_mode=False,
-        module_source="bundled",
         status="ok",
         warnings=[],
         error=None,
@@ -34,8 +32,6 @@ def test_build_result_has_mandatory_fields_on_success() -> None:
     assert result["columns"] == [{"key": "path", "label": "Path", "type": "string"}]
     assert result["rows"][0]["_row_status"] == "ok"
     assert result["run"]["source_files"] == ["a"]
-    assert result["run"]["dev_mode"] is False
-    assert result["run"]["module_source"] == "bundled"
     assert result["run"]["started_at"] == "2026-01-01T00:00:00Z"
 
 
@@ -50,8 +46,6 @@ def test_build_result_carries_an_error_on_failure() -> None:
         duration_ms=1,
         input_path="/tmp/in",
         source_files=[],
-        dev_mode=True,
-        module_source="external:/tmp/module.py",
         status="error",
         warnings=[],
         error={"message": "boom", "detail": "ValueError"},
@@ -63,4 +57,3 @@ def test_build_result_carries_an_error_on_failure() -> None:
     assert result["error"] == {"message": "boom", "detail": "ValueError"}
     assert result["columns"] == []
     assert result["rows"] == []
-    assert result["run"]["dev_mode"] is True
