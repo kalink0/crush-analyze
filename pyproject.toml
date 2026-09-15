@@ -49,7 +49,7 @@ Issues = "https://github.com/kalink0/crush-analyze/issues"
 include = ["crush_analyze*"]
 
 [tool.setuptools.package-data]
-crush_analyze = ["py.typed", "vendored/leapp/*.toml", "vendored/leapp/LICENSE"]
+crush_analyze = ["py.typed", "vendored/leapp/**/*.toml", "vendored/leapp/LICENSE"]
 
 [tool.ruff]
 line-length = 100

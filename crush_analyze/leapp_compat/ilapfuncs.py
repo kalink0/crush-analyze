@@ -1,11 +1,11 @@
 """A minimal, from-scratch reimplementation of the handful of
 `scripts.ilapfuncs` symbols a ported/dev-mode LEAPP artifact module
 actually imports at its top: `open_sqlite_db_readonly`, `artifact_processor`,
-`logfunc`, `get_file_path`. Not a vendored copy of iLEAPP's real
-`scripts/ilapfuncs.py` (1900+ lines covering HTML/TSV/KML/LAVA report
-generation, GUI log redirection, Windows extended-path handling for
-iLEAPP's own extraction scheme — none of which crush-analyze needs or
-wants to depend on). See docs/design/analyzer-runner.md in
+`logfunc`, `get_file_path`, `does_column_exist_in_db`. Not a vendored copy of
+iLEAPP's/aLEAPP's real `scripts/ilapfuncs.py` (1900+ lines covering HTML/TSV/
+KML/LAVA report generation, GUI log redirection, Windows extended-path
+handling for LEAPP's own extraction scheme — none of which crush-analyze
+needs or wants to depend on). See docs/design/analyzer-runner.md in
 crush-forensics, "Vendoring policy".
 
 Registered into `sys.modules` by `leapp_compat.loader` before a vendored or
@@ -52,6 +52,22 @@ def open_sqlite_db_readonly(path: str | None) -> sqlite3.Connection | None:
         logfunc(f"Error with {path}:")
         logfunc(f" - {exc}")
         return None
+
+
+def does_column_exist_in_db(path: str, table_name: str, col_name: str) -> bool:
+    """Checks whether `table_name` has a column named `col_name`, for a
+    module reading a table whose schema varies across OS versions. Mirrors
+    iLEAPP/aLEAPP's own `does_column_exist_in_db` (`PRAGMA table_info`,
+    case-insensitive column-name match)."""
+    db = open_sqlite_db_readonly(path)
+    if db is None:
+        return False
+    try:
+        cursor = db.cursor()
+        cursor.execute(f"pragma table_info('{table_name}')")
+        return any(row[1].lower() == col_name.lower() for row in cursor.fetchall())
+    finally:
+        db.close()
 
 
 def artifact_processor(func: Callable[..., Any]) -> Callable[..., Any]:

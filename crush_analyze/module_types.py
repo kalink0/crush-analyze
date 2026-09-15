@@ -22,10 +22,41 @@ class ModuleResult:
 
 
 @dataclass
+class SourceInfo:
+    """Where a vendored module's own upstream file came from -- read from
+    that platform's MANIFEST.toml (see vendored/leapp/*/MANIFEST.toml), not
+    something a module author sets. `url` is a commit-pinned link to the
+    exact file content this vendored copy was fetched from (a GitHub "blob"
+    URL, since every current upstream_repo is a github.com repo), not just a
+    link to the repo -- the whole point is showing the exact underlying
+    version a result was produced against, not whatever the repo's default
+    branch currently has."""
+
+    repo: str
+    commit: str
+    path: str
+    url: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {"repo": self.repo, "commit": self.commit, "path": self.path, "url": self.url}
+
+
+@dataclass
 class ModuleInfo:
+    """`platform` is "ios" | "android" for a vendored LEAPP-family module,
+    set from its vendored/leapp/<platform>/ subdirectory -- "generic" for a
+    platform-agnostic module (e.g. the stub) or a dev-mode external file
+    loaded outside that directory structure.
+
+    `source` is None for the stub module and for a dev-mode external file
+    (there is no upstream commit to pin to -- `run.module_source`'s own
+    "external:<path>" already says where that one came from)."""
+
     id: str
     name: str
     module_version: str
     run: Callable[[Context], ModuleResult]
     paths: list[str] = field(default_factory=lambda: ["*"])
     requires: list[str] = field(default_factory=list)
+    platform: str = "generic"
+    source: SourceInfo | None = None

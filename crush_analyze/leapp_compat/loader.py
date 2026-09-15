@@ -20,7 +20,7 @@ from typing import Any
 from . import ilapfuncs
 from ..context import Context
 from ..contract import Column
-from ..module_types import ModuleInfo, ModuleResult
+from ..module_types import ModuleInfo, ModuleResult, SourceInfo
 
 _KNOWN_COLUMN_TYPES = {"string", "int", "float", "bool", "datetime"}
 
@@ -33,8 +33,12 @@ def install_scripts_shim() -> None:
     """Registers `leapp_compat.ilapfuncs` into `sys.modules` under the exact
     dotted name (`scripts.ilapfuncs`) a LEAPP artifact file's own, unmodified
     `from scripts.ilapfuncs import ...` expects — so neither a vendored file
-    nor a dev-mode external file needs a real iLEAPP install on the machine
-    running crush-analyze. Idempotent; safe to call before every load."""
+    nor a dev-mode external file needs a real iLEAPP/aLEAPP install on the
+    machine running crush-analyze. Also registers the vendored
+    `scripts.artifacts.storagePathViews` helper a real aLEAPP artifact file
+    can import the same way -- unconditionally, exactly like `ilapfuncs`,
+    regardless of whether the file being loaded actually needs it.
+    Idempotent; safe to call before every load."""
     if "scripts" not in sys.modules:
         scripts_pkg = ModuleType("scripts")
         scripts_pkg.__path__ = []  # marks it as a package so `scripts.ilapfuncs` resolves
@@ -42,17 +46,33 @@ def install_scripts_shim() -> None:
     sys.modules["scripts.ilapfuncs"] = ilapfuncs
     sys.modules["scripts"].ilapfuncs = ilapfuncs  # type: ignore[attr-defined]
 
+    if "scripts.artifacts" not in sys.modules:
+        artifacts_pkg = ModuleType("scripts.artifacts")
+        artifacts_pkg.__path__ = []
+        sys.modules["scripts.artifacts"] = artifacts_pkg
+        sys.modules["scripts"].artifacts = artifacts_pkg  # type: ignore[attr-defined]
+    storage_path_views = _load_android_storage_path_views()
+    sys.modules["scripts.artifacts.storagePathViews"] = storage_path_views
+    sys.modules["scripts.artifacts"].storagePathViews = storage_path_views  # type: ignore[attr-defined]
 
-def exec_module_file(path: Path) -> ModuleType:
-    """Installs the `scripts.ilapfuncs` shim and `exec`s `path` as a fresh
-    module object. Shared by `load_leapp_module_file` below and by
-    `runner.load_external_module`'s dev-mode path, which needs the raw
-    module object first to check for crush-analyze's own native `MODULE`
-    convention before falling back to `__artifacts_v2__`."""
+
+def exec_module_file(path: Path, *, install_shim: bool = True) -> ModuleType:
+    """Installs the `scripts.ilapfuncs`/`scripts.artifacts.storagePathViews`
+    shim and `exec`s `path` as a fresh module object. Shared by
+    `load_leapp_module_file` below and by `runner.load_external_module`'s
+    dev-mode path, which needs the raw module object first to check for
+    crush-analyze's own native `MODULE` convention before falling back to
+    `__artifacts_v2__`.
+
+    `install_shim=False` is for `_load_android_storage_path_views` below only
+    -- it loads the shim's own `storagePathViews.py` helper, which imports
+    nothing from `scripts.*` and would otherwise recurse straight back into
+    `install_scripts_shim`."""
     if not path.is_file():
         raise LeappModuleLoadError(f"module file not found: {path}")
 
-    install_scripts_shim()
+    if install_shim:
+        install_scripts_shim()
 
     spec = importlib.util.spec_from_file_location(path.stem, path)
     if spec is None or spec.loader is None:
@@ -65,7 +85,29 @@ def exec_module_file(path: Path) -> ModuleType:
     return module
 
 
-def artifacts_from_module(module: ModuleType, path: Path) -> list[ModuleInfo]:
+_ANDROID_HELPER_DIR = Path(__file__).resolve().parent.parent / "vendored" / "leapp" / "android" / "_helpers"
+_android_storage_path_views: ModuleType | None = None
+
+
+def _load_android_storage_path_views() -> ModuleType:
+    """Lazily loads and caches the vendored `storagePathViews.py` helper (see
+    its entry in vendored/leapp/android/MANIFEST.toml for why this one
+    non-artifact file is vendored alongside the android artifact scripts).
+    Lives in an `_helpers/` subdirectory precisely so `modules._load_vendored_
+    modules`'s `platform_dir.glob("*.py")` never tries to load it as an
+    artifact module itself -- it has no `__artifacts_v2__`, which would
+    otherwise print a spurious "could not load" warning on every run."""
+    global _android_storage_path_views
+    if _android_storage_path_views is None:
+        _android_storage_path_views = exec_module_file(
+            _ANDROID_HELPER_DIR / "storagePathViews.py", install_shim=False
+        )
+    return _android_storage_path_views
+
+
+def artifacts_from_module(
+    module: ModuleType, path: Path, *, platform: str = "generic", source: SourceInfo | None = None
+) -> list[ModuleInfo]:
     artifacts = getattr(module, "__artifacts_v2__", None)
     if not artifacts:
         raise LeappModuleLoadError(f"{path} has no __artifacts_v2__ dict")
@@ -85,14 +127,18 @@ def artifacts_from_module(module: ModuleType, path: Path) -> list[ModuleInfo]:
                 run=_adapt(func),
                 paths=_normalize_paths(meta.get("paths", "*")),
                 requires=_normalize_requirements(meta.get("requirements", "none")),
+                platform=platform,
+                source=source,
             )
         )
     return infos
 
 
-def load_leapp_module_file(path: Path) -> list[ModuleInfo]:
+def load_leapp_module_file(
+    path: Path, *, platform: str = "generic", source: SourceInfo | None = None
+) -> list[ModuleInfo]:
     module = exec_module_file(path)
-    return artifacts_from_module(module, path)
+    return artifacts_from_module(module, path, platform=platform, source=source)
 
 
 def _normalize_paths(paths: Any) -> list[str]:

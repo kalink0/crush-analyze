@@ -13,6 +13,8 @@ def test_run_stub_module_returns_ok_status(tmp_path: Path) -> None:
     result = run(get_module("stub"), tmp_path, dev_mode=False, module_source="bundled")
 
     assert result["status"] == "ok"
+    assert result["analyzer"]["platform"] == "generic"
+    assert result["analyzer"]["source"] is None
     assert result["rows"] == [{"_row_status": "ok", "path": str(tmp_path / "a.txt")}]
 
 
@@ -151,11 +153,69 @@ def test_run_real_vendored_installed_apps_module_against_a_synthetic_fixture(
     result = run(get_module("get_installed_apps"), tmp_path, dev_mode=False, module_source="bundled")
 
     assert result["status"] == "ok"
+    assert result["analyzer"]["platform"] == "ios"
+    assert result["analyzer"]["source"] == {
+        "repo": "https://github.com/abrignoni/iLEAPP",
+        "commit": "b055398e485daae838ba3c55fd611cc303f0a854",
+        "path": "scripts/artifacts/applicationStateDB.py",
+        "url": "https://github.com/abrignoni/iLEAPP/blob/"
+        "b055398e485daae838ba3c55fd611cc303f0a854/scripts/artifacts/applicationStateDB.py",
+    }
     assert result["rows"] == [
         {
             "_row_status": "ok",
             "bundle_id": "com.example.testapp",
             "bundle_path": "/private/var/containers/Bundle/Application/XXXX/TestApp.app",
             "sandbox_path": "/private/var/mobile/Containers/Data/Application/XXXX",
+        }
+    ]
+
+
+def test_run_real_vendored_installedapps_vending_module_against_a_synthetic_fixture(
+    tmp_path: Path,
+) -> None:
+    import sqlite3
+    from datetime import datetime, timezone
+
+    db_path = tmp_path / "data" / "data" / "com.android.vending" / "databases" / "localappstate.db"
+    db_path.parent.mkdir(parents=True)
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        "CREATE TABLE appstate ("
+        "first_download_ms INTEGER, package_name TEXT, title TEXT, install_reason TEXT, "
+        "last_update_timestamp_ms INTEGER, auto_update TEXT, account TEXT)"
+    )
+    conn.execute(
+        "INSERT INTO appstate VALUES "
+        "(1735689600000, 'com.example.testapp', 'Test App', '0', "
+        "1735776000000, '1', 'user@example.com')"
+    )
+    conn.commit()
+    conn.close()
+
+    result = run(
+        get_module("get_installedappsVending"), tmp_path, dev_mode=False, module_source="bundled"
+    )
+
+    assert result["status"] == "ok"
+    assert result["analyzer"]["platform"] == "android"
+    assert result["analyzer"]["source"] == {
+        "repo": "https://github.com/abrignoni/aLEAPP",
+        "commit": "bdc6a5bd841910ef7e7cc71ed4f57b8fc4122306",
+        "path": "scripts/artifacts/installedappsVending.py",
+        "url": "https://github.com/abrignoni/aLEAPP/blob/"
+        "bdc6a5bd841910ef7e7cc71ed4f57b8fc4122306/scripts/artifacts/installedappsVending.py",
+    }
+    assert result["rows"] == [
+        {
+            "_row_status": "ok",
+            "user": "0",
+            "first_download": datetime(2025, 1, 1, tzinfo=timezone.utc),
+            "package_name": "com.example.testapp",
+            "title": "Test App",
+            "install_reason": "0",
+            "last_updated": datetime(2025, 1, 2, tzinfo=timezone.utc),
+            "auto_update": "Yes",
+            "account": "user@example.com",
         }
     ]

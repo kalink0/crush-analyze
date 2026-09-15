@@ -9,6 +9,8 @@ def test_build_result_has_mandatory_fields_on_success() -> None:
     result = build_result(
         analyzer_id="stub",
         analyzer_name="Stub",
+        analyzer_platform="generic",
+        analyzer_source=None,
         module_version="1",
         started_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
         duration_ms=5,
@@ -26,6 +28,8 @@ def test_build_result_has_mandatory_fields_on_success() -> None:
     assert result["status"] == "ok"
     assert result["warnings"] == []
     assert result["error"] is None
+    assert result["analyzer"]["platform"] == "generic"
+    assert result["analyzer"]["source"] is None
     assert result["columns"] == [{"key": "path", "label": "Path", "type": "string"}]
     assert result["rows"][0]["_row_status"] == "ok"
     assert result["run"]["dev_mode"] is False
@@ -37,6 +41,8 @@ def test_build_result_carries_an_error_on_failure() -> None:
     result = build_result(
         analyzer_id="stub",
         analyzer_name="Stub",
+        analyzer_platform="generic",
+        analyzer_source=None,
         module_version="1",
         started_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
         duration_ms=1,

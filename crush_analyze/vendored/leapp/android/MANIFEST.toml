@@ -1,0 +1,44 @@
+# Hash-pinned manifest for files vendored byte-identical from aLEAPP,
+# tracked the same disciplined way as crush-forensics' qnxprobe/ewfprobe.
+# See docs/design/analyzer-runner.md ("Vendoring policy") in crush-forensics
+# and docs/porting-leapp-modules.md in this repo.
+#
+# Never hand-edit a vendored .py file directly — re-fetch from upstream at a
+# new commit and update the matching entry here instead, so `sha256` always
+# proves what's actually on disk came from that exact upstream commit.
+
+[[files]]
+name = "installedappsVending.py"
+upstream_repo = "https://github.com/abrignoni/aLEAPP"
+upstream_path = "scripts/artifacts/installedappsVending.py"
+upstream_commit = "bdc6a5bd841910ef7e7cc71ed4f57b8fc4122306"
+upstream_license = "MIT"
+fetched_at = "2026-09-15"
+sha256 = "58e53891d26d1ad1fa5e578ff960e7db94a575aa0e52426748d1998f9722606f"
+# Declares one artifact function: get_installedappsVending, exposed as the
+# module id "get_installedappsVending" (see crush_analyze/modules/__init__.py).
+# Depends on the vendored storagePathViews.py helper below (`unique_files`),
+# not on anything else new in the ilapfuncs shim beyond
+# `does_column_exist_in_db`.
+
+[[files]]
+name = "_helpers/storagePathViews.py"
+upstream_repo = "https://github.com/abrignoni/aLEAPP"
+upstream_path = "scripts/artifacts/storagePathViews.py"
+upstream_commit = "e511e4fed98bbe9791f10ea25f26d2dfd1b7eef7"
+upstream_license = "MIT"
+fetched_at = "2026-09-15"
+sha256 = "0c804780f848ad066f37ee18d873074d7f570dffae249e32d315ed54204a7232"
+# Not an artifact script itself (no __artifacts_v2__) -- a shared helper
+# aLEAPP's own artifact scripts import via `from scripts.artifacts.
+# storagePathViews import unique_files` to collapse the duplicate storage
+# paths one Android extraction can carry for the same file. Vendored
+# byte-identical rather than reimplemented (see docs/porting-leapp-
+# modules.md) because it is real, documented forensic logic (which of
+# several duplicate on-disk paths is the canonical one), not LEAPP framework
+# plumbing -- reimplementing it from scratch would risk silently diverging
+# from upstream's behavior. Registered into `sys.modules` under
+# `scripts.artifacts.storagePathViews` by
+# `leapp_compat.loader.install_scripts_shim()`, the same way `ilapfuncs` is.
+# Lives under `_helpers/`, not directly in `android/`, so it's excluded from
+# `modules._load_vendored_modules`'s per-platform artifact-module scan.

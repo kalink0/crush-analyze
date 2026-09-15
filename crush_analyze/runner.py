@@ -94,6 +94,8 @@ def run(
     return build_result(
         analyzer_id=module_info.id,
         analyzer_name=module_info.name,
+        analyzer_platform=module_info.platform,
+        analyzer_source=module_info.source.to_dict() if module_info.source else None,
         module_version=module_info.module_version,
         started_at=started_at,
         duration_ms=duration_ms,
