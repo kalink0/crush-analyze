@@ -10,10 +10,20 @@ iOS ones: `analyzer.platform` ("ios" | "android" | "generic"), so a
 consumer can tell which OS a result's module targets without parsing its
 `analyzer.id`; and `analyzer.source` (`null` for the stub module and for a
 dev-mode external file, else `{repo, commit, path, url}` naming the exact
-upstream commit a curated module's vendored copy was fetched from). Both
-purely additive -- no existing field changed -- but still worth folding
-back into the frozen spec doc in crush-forensics, the same way that doc
-already tracks other corrections discovered while porting.
+upstream commit a curated module's vendored copy was fetched from).
+
+One more addition, made for the same reason Crush's Properties panel
+wanted `analyzer.source` -- knowing what a result is actually based on:
+`run.source_files`, every file (relative to `input_path`) that matched
+the module's own declared `paths` glob and was therefore available to it
+via `Context.get_files_found()`. This is what the module *had access to*,
+not necessarily proof of exactly which bytes it read from each one --
+matches "what data is this result based on" the same way `analyzer.source`
+answers "what code is this result based on".
+
+All purely additive -- no existing field changed -- but still worth
+folding back into the frozen spec doc in crush-forensics, the same way
+that doc already tracks other corrections discovered while porting.
 """
 
 from __future__ import annotations
@@ -47,6 +57,7 @@ def build_result(
     started_at: datetime,
     duration_ms: int,
     input_path: str,
+    source_files: list[str],
     dev_mode: bool,
     module_source: str,
     status: str,
@@ -70,6 +81,7 @@ def build_result(
             "started_at": started_at.isoformat().replace("+00:00", "Z"),
             "duration_ms": duration_ms,
             "input_path": input_path,
+            "source_files": source_files,
             "dev_mode": dev_mode,
             "module_source": module_source,
         },

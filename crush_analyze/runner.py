@@ -100,6 +100,11 @@ def run(
         started_at=started_at,
         duration_ms=duration_ms,
         input_path=str(input_path),
+        # Relative to input_path, not absolute -- the absolute path only
+        # means anything inside this run's own (often temp, since-deleted)
+        # extraction directory, matching Context.get_relative_path's own
+        # convention for anything shown back to a caller.
+        source_files=[str(p.relative_to(input_path)) for p in files_found],
         dev_mode=dev_mode,
         module_source=module_source,
         status=status,

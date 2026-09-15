@@ -15,6 +15,7 @@ def test_run_stub_module_returns_ok_status(tmp_path: Path) -> None:
     assert result["status"] == "ok"
     assert result["analyzer"]["platform"] == "generic"
     assert result["analyzer"]["source"] is None
+    assert result["run"]["source_files"] == ["a.txt"]
     assert result["rows"] == [{"_row_status": "ok", "path": str(tmp_path / "a.txt")}]
 
 
@@ -161,6 +162,9 @@ def test_run_real_vendored_installed_apps_module_against_a_synthetic_fixture(
         "url": "https://github.com/abrignoni/iLEAPP/blob/"
         "b055398e485daae838ba3c55fd611cc303f0a854/scripts/artifacts/applicationStateDB.py",
     }
+    assert result["run"]["source_files"] == [
+        "private/var/mobile/Library/FrontBoard/applicationState.db"
+    ]
     assert result["rows"] == [
         {
             "_row_status": "ok",
